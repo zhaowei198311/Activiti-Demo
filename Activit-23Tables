@@ -1,0 +1,141 @@
+1、act_ge_bytearray
+用来保存部署文件的大文本数据，比如流程xml、流程图片
+REV_：乐观锁版本，流程的24张表中有很多表都有这个字段，这个字段是为了保证操作的独占性，保证同一条记录只会被一个用户修改。
+NAME_：流程定义文件名称（bpmn xml文件，png文件）
+DEPLOYMENT_ID_：流程部署id
+
+
+2.act_ge_property
+属性数据表，存储整个流程引擎级别的数据 重点强调：history和version版本最好对应
+若项目Project 报错提醒 5.21.0.0 或者 5.22.0.0 与其他版本时 要缩小对version版本的差距
+
+
+3.act_re_deployment
+流程部署信息表
+ID_：流程的部署id  NAME_：流程的部署名称
+CATEGORY_：流程的分类   TENANT_ID_：租户ID(对Saas平台的数据支持)
+DEPLOY_TIME_：部署时间
+
+
+4.act_re_model
+模型表
+
+
+5.act_re_procdef
+流程定义表 ID_ ：流程定义id  REV_：乐观锁版本  CATEGORY_：流程类别，默认存储的是流程定义时的命名空间 NAME_：流程定义的名称，对应上面流程定义xml  process节点的name属性
+KEY_：流程定义的key，对应上面流程定义xml  process节点的id属性，一般启动流程也是按照这个key去启动的 VERSION_：版本（再次部署相同的流程定义时该字段会自动加1）
+DEPLOYMENT_ID_：流程部署id  RESOURCE_NAME_：流程定义资源名称  DGRM_RESOURCE_NAME_：流程图片名称 HAS_START_FORM_KEY_：不确定（外置表单？）
+SUSPENSION_STATE_：是否暂停状态
+
+
+6.act_ru_event_subscr
+暂时未使用到这个事件监听表，后面用到再补充
+
+
+7.act_ru_execution
+流程执行表 ID_：流程执行的id PROC_INST_ID_：流程实例的id BUSINESS_KEY_：业务表关联的id PARENT_ID_：父流程执行id，上面这个示例没有Parallel Gateway这个节点，如果有这个节点就会在数据表中看到分支执行的PARENT_ID_是主线执行的执行ID
+PROC_DEF_ID_：流程定义的id SUPER_EXEC_：外部子执行的ID(不太确定，暂时未知) ACT_ID_：流程节点的id，比如示例xml中的audit
+<userTask id="audit" name="审批"></userTask> IS_ACTIVE_：是否是活动的流程执行，0表示非活动，1表示活动 IS_CONCURRENT_：是否是并发执行，0表示非，1表示是
+IS_SCOPE_：是否是全局的流程执行，主执行这个字段为1，子流程执行这个是0  IS_EVENT_SCOPE：和事件相关(不太确定，暂时未知)  SUSPENSION_STATE_：(不太确定，暂时未知)
+CACHED_ENT_STATE_：(不太确定，暂时未知)  TENANT_ID_：  NAME：(不太确定，暂时未知)
+ps：task和execution的区别（任务和流程执行的区别）：task是代办任务，excution是流程执行路线，每一个task总会对应一个excution，但是一个excution不一定对应一个task
+
+
+8.act_ru_identitylink
+当前任务与参与者的关系数据表
+
+
+9.act_ru_job
+运行时定时任务数据表
+
+
+10.act_ru_task
+运行中的任务表 及流程发布之后 正在运行中的一个流程
+
+
+11.act_ru_variable
+运行中任务对应的参数数据表
+
+
+12.act_hi_actinst
+历史节点表，存放历史节点的信息比如节点名称、类型、委托人、开始结束时间、耗时等等。
+PROC_DEF_ID_：流程定义的ID  PROC_INST_ID_：流程实例的ID  EXECUTION_ID_：流程执行的ID  ACT_ID_：流程节点的id，这个字段是在我们定义流程xml中给每个节点指定的id，如下：
+TASK_ID_：任务id  CALL_PROC_INST_ID_：调用外部的流程实例id  ACT_NAME_：activiti名称，即每个流程节点的名称，如上截图中的name属性
+ACT_TYPE_：流程节点类型，如上截图中的startEvent、userTask等  ASSIGNEE_：该任务处理人（如果该任务属于角色组，即角色组下的用户没有领取该任务，该字段为空，用户认领了任务后，该字段存储处理人的id）
+START_TIME_：任务开始时间  END_TIME_：任务结束时间（如果任务没有被处理，该字段为空，处理后更新该字段）
+DURATION：耗时  TENANT_ID_：网上查了说是租户ID，不明白这个是干啥的（待定吧）
+
+
+13.act_hi_attachment
+历史附件表（存储每个流程实例下任务节点的附件信息）
+
+
+14.act_hi_comment
+历史意见表（存放每个流程实例下的任务节点产生的信息，比如审批意见，处理结果记录等等）
+
+
+15.act_hi_detail
+历史详情表，这个表很重要，流程中产生的变量详细、控制流程流转的变量、业务表单中填写的流程要用到的变量等，都会存储在这种表中。
+
+
+16.act_hi_identitylink
+存放历史任务与办理人的关系表（存储历史节点处理者的信息）
+GROUP_ID_：用户组id  TYPE_：用户组类型  USER_ID：用户id  TASK_ID_：任务id  PROC_INST_ID_：流程实例id
+主要字段：TYPE_: 分candidate、owner、starter、participant、assignee 分为candidate、owner、starter、participant、assignee
+candidate：候选者，从上面的数据可以看出，当一个节点被指定为用户组，或者被指定为人去处理，则TYPE_的类型为candidate，指的是该任务需要先被组用户或者指定用户认领。
+participant：参与者，我的理解是如果是个人任务，则类型为participant。
+starter：启动者，流程实例的发起者，请参照上图的TYPE_为starter的数据。
+owner：拥有者，这个类型我的理解是只有在任务被委托出去后，它才有意义，它表示任务实际的拥有者。
+assignee：签收人或者被委托
+
+
+17.act_hi_procinst
+历史流程实例表，存放了历史流程实例的一些重要信息，我们的业务id和历史流程实例的关系也是存储在这里的。
+BUSINESS_KEY_：业务id  PROC_DEF_ID_：流程定义id  START_TIME_：流程实例创建时间  END_TIME_：流程实例结束时间
+DURATION_：时长  START_USER_ID_：流程实例启动者  START_ACT_ID_：流程实例启动节点ID  END_ACT_ID_：流程实例结束节点ID
+SUPER_PROCESS_INSTANCE_ID_：超级流程实例Id  DELETE_REASON_：删除理由  TENANT_ID_  NAME_
+
+
+18.act_hi_taskinst
+历史任务表，存放了历史任务的详细信息。
+
+
+19.act_hi_varinst
+历史变量表
+
+
+流程角色涉及的表
+20、act_id_group
+21、act_id_info
+22、act_id_membership
+23、act_id_user 
+
+事件日志涉及的表
+24、act_evt_log
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
